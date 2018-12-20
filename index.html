@@ -25,7 +25,7 @@ const keyToPoint = key => Array.from(key.split(SEPARATOR), x => +x)
 // [Number] -> String
 const pointToKey = point => point.join(SEPARATOR)
 
-// a -> Number | a
+// Number | a -> Number
 const safeInc = compose(inc, defaultTo(0))
 
 // String | Number -> [Number] -> Lens s a
