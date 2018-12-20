@@ -1,2 +1,3 @@
-# ramda-life
-Conway’s Game of Life
+"# ramda-life" 
+
+Based on ideas from https://revelry.co/conways-game-of-life/
