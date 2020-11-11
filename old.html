@@ -1,0 +1,100 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ramda/0.25.0/ramda.js"></script>
+
+<div class="content">
+  <canvas id="canvas" width="1512" height="1512"></canvas>
+</div>
+
+<script>
+
+const { add, compose, curry, defaultTo, inc, forEach, lensPath, lensProp, map, over, reduce, repeat, set, toPairs, view, xprod, zipWith, keys, filter } = R
+const MOORE_LINE = [-1, 0, 1]
+const MOORE_POINTS = xprod(MOORE_LINE, MOORE_LINE)
+const SEED = [[51, 49], [50, 50], [51, 50], [52, 50], [52, 51]]
+const GLIDER_GUN = [[5, 1], [5, 2], [6, 1], [6, 2], [5, 11], [6, 11], [7, 11], [4, 12], [3, 13], [3, 14], [8, 12], [9, 13], [9, 14], [6, 15], [4, 16], [5, 17], [6, 17], [7, 17], [6, 18], [8, 16], [3, 21], [4, 21], [5, 21], [3, 22], [4, 22], [5, 22], [2, 23], [6, 23], [1, 25], [2, 25], [6, 25], [7, 25], [3, 35], [4, 35], [3, 36], [4, 36]]
+
+const COUNT_PROP = 0
+const FLAG_PROP  = 1
+const SEPARATOR = ","
+
+// [Number] -> [[Number]]
+const neigbours = point => map(zipWith(add)(point), MOORE_POINTS)
+
+// String -> [Number]
+const keyToPoint = key => Array.from(key.split(SEPARATOR), x => +x)
+
+// [Number] -> String
+const pointToKey = point => point.join(SEPARATOR)
+
+// Number | a -> Number
+const safeInc = compose(inc, defaultTo(0))
+
+// String | Number -> [Number] -> Lens s a
+const pointPropLens = curry((prop, point) => lensPath([pointToKey(point), prop]))
+
+// [Number] -> Lens s a
+const countLens = pointPropLens(COUNT_PROP)
+// [Number] -> Lens s a
+const aliveLens = pointPropLens(FLAG_PROP)
+
+// ( { k: v }, [Number] ) -> { k: { COUNT_PROP: Number } } 
+const incNeigboursCount = (board, point) => over(countLens(point), safeInc, board)
+// ( { k: v }, [Number] ) -> { k: { FLAG_PROP: true } }
+const markAlive         = (board, point) =>  set(aliveLens(point), true,    board)
+
+// { COUNT_PROP: Number } -> Number
+const nCount  = view(lensProp(COUNT_PROP))
+// { FLAG_PROP: Boolean } -> Boolean
+const isAlive = view(lensProp(FLAG_PROP))
+
+// ( { k: Cell }, [Number] ) -> { k: Cell } 
+// Cell = { COUNT_PROP: Number, FLAG_PROP: Boolean }
+// for live point update a dictionary, where:
+//   -- keys are points nearby input point
+//   -- increment neigbours counter property for point's neigbourhood and set point's isAlive flag 
+const pointToCellsReducer = (board, point) => reduce(
+  incNeigboursCount,
+  markAlive(board, point),
+  neigbours(point)
+)
+
+// [[Number]] -> { k: Cell }
+// Cell = { COUNT_PROP: Number, FLAG_PROP: Boolean }
+// return object where:
+//   -- keys contains all points for applying rules
+//   -- values contains neigbours counter and flag for living cell
+const boardToCells = reduce(pointToCellsReducer, {})
+
+// Cell -> Boolean
+// Cell = { COUNT_PROP: Number, FLAG_PROP: Boolean }
+const rules = c => nCount(c) == 3 || nCount(c) == 4 && isAlive(c)
+
+// [[Number]] -> [[Number]]
+// For every cell satisfies the rules, convert key to point and add to the next board
+const step = compose(
+  map(keyToPoint),
+  keys,
+  filter(rules),
+  boardToCells
+)
+
+
+// ( [[Number]], Number ) -> Void
+const paint = (board, w = 8) => {
+  const context = document.getElementById('canvas').getContext('2d')
+  context.clearRect(0, 0, 1512, 1512)
+  forEach(
+    ([x, y]) => context.fillRect(x * w, y * w, w, w),
+    board
+  )
+}
+
+const seed = () => GLIDER_GUN
+
+const app = board => {
+  paint(board)
+  requestAnimationFrame(() => app(step(board)))
+}
+
+;(() => app(seed()))()
+
+</script>
